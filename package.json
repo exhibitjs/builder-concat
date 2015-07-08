@@ -1,6 +1,6 @@
 {
   "name": "exhibit-concat",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Callum Locke",
   "dependencies": {
     "find-assets": "^0.3.1",
