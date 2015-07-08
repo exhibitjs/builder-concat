@@ -44,7 +44,7 @@ export default function () {
                   return asset;
                 })
                 .catch(error => {
-                  if (error.code === 'EXHIBITNOTFOUND') {
+                  if (error.code === 'ENOENT' || error.code === 'EISDIR') {
                     // return an empty asset
                     asset.contents = new Buffer('');
                     asset.realPath = assetPath;
