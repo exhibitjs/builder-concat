@@ -1,7 +1,7 @@
 {
   "name": "exhibit-builder-concat",
   "description": "Exhibit builder for concatenating adjacent scripts and stylesheets.",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "author": "Callum Locke",
   "bugs": {
     "url": "https://github.com/exhibitjs/exhibit-builder-concat/issues"
