@@ -1,30 +1,27 @@
-import {extname, resolve, dirname, normalize, relative} from 'path';
-import posixPath from 'path-browserify';
+import {extname, resolve, dirname, normalize, relative, posix as posixPath} from 'path';
 import reorientCSS from 'reorient-css';
 import findAssets from 'find-assets';
 import {createHash} from 'crypto';
 
 const semicolonBuffer = new Buffer(';');
 
-
 export default function () {
-
   return function exhibitConcat(path, contents) {
-    const {Promise, SourceError, _} = this;
+    const {Promise, SourceError, _} = this.util;
 
-    // reject any CSS/JS from getting through directly
-    switch(extname(path)) {
+    switch (extname(path)) {
+      // reject any CSS/JS from getting through directly
       case '.css':
       case '.js':
         return null;
 
+      // process html
       case '.html':
         const inputHTML = contents.toString();
         const baseDir = dirname(path);
 
         // load all assets and augment the groups array with their contents
         return Promise.map(findAssets.html(inputHTML), group => {
-
           if (isLocalURL(group[0].url)) {
             return Promise.map(group, asset => {
               // establish real file path to asset
@@ -55,10 +52,10 @@ export default function () {
                     const line = linesUntilAsset.length;
                     const column = linesUntilAsset[line - 1].length + 1;
 
-                    this.emit('error', new this.SourceError({
+                    this.emit('error', new SourceError({
                       warning: true,
                       message: `Missing file "${asset.realPathRelative}" will not be included in concatenation`,
-                      path: path,
+                      path,
                       contents: inputHTML,
                       line,
                       column,
@@ -66,13 +63,13 @@ export default function () {
 
                     return asset;
                   }
-                  else throw error;
+
+                  throw error;
                 });
             });
           }
 
           return null; // not a local asset URL; ignore
-
         }).then(groups => {
           // all async work is done now. just build the new HTML and output all the files...
           const results = {};
@@ -149,13 +146,19 @@ export default function () {
             }
           }
 
+
+          // finish off with the remaining HTML
+          fixedHTML += inputHTML.substring(lastIndex);
+
           // add the fixed HTML file itself and return
           results[path] = fixedHTML;
           return results;
         });
-    }
 
-    return contents;
+      // all other filetypes allowed through unmodified
+      default:
+        return contents;
+    }
   };
 }
 
