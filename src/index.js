@@ -1,15 +1,18 @@
-import {extname, resolve, dirname, normalize, relative, posix as posixPath} from 'path';
 import reorientCSS from 'reorient-css';
 import findAssets from 'find-assets';
 import {createHash} from 'crypto';
+import path from 'path';
 
 const semicolonBuffer = new Buffer(';');
 
 export default function () {
-  return function exhibitConcat(path, contents) {
-    const {Promise, SourceError, _} = this.util;
+  return function exhibitConcat(job) {
+    const {
+      file, contents, ext, importFile, emit,
+      util: {Promise, SourceError, _},
+    } = job;
 
-    switch (extname(path)) {
+    switch (ext) {
       // reject any CSS/JS from getting through directly
       case '.css':
       case '.js':
@@ -18,7 +21,7 @@ export default function () {
       // process html
       case '.html':
         const inputHTML = contents.toString();
-        const baseDir = dirname(path);
+        const baseDir = path.dirname(file);
 
         // load all assets and augment the groups array with their contents
         return Promise.map(findAssets.html(inputHTML), group => {
@@ -27,17 +30,17 @@ export default function () {
               // establish real file path to asset
               let assetPath;
               if (asset.url.charAt(0) === '/') {
-                global.todo();
+                throw new Error('Absolute URLs not yet implemented by concat plugin');
               }
               else {
-                assetPath = resolve(dirname(normalize(path)), normalize(asset.url));
+                assetPath = path.resolve(path.dirname(path.normalize(file)), path.normalize(asset.url));
               }
 
-              return this.import(assetPath)
+              return importFile(assetPath)
                 .then(loadedAsset => {
                   asset.contents = loadedAsset.contents;
-                  asset.realPath = loadedAsset.path;
-                  asset.realPathRelative = relative(baseDir, loadedAsset.path);
+                  asset.realPath = loadedAsset.file;
+                  asset.realPathRelative = path.relative(baseDir, loadedAsset.file);
                   return asset;
                 })
                 .catch(error => {
@@ -45,17 +48,17 @@ export default function () {
                     // return an empty asset
                     asset.contents = new Buffer('');
                     asset.realPath = assetPath;
-                    asset.realPathRelative = relative(baseDir, assetPath);
+                    asset.realPathRelative = path.relative(baseDir, assetPath);
 
                     // and emit a warning
                     const linesUntilAsset = inputHTML.substring(0, asset.start).split('\n');
                     const line = linesUntilAsset.length;
                     const column = linesUntilAsset[line - 1].length + 1;
 
-                    this.emit('error', new SourceError({
+                    emit('error', new SourceError({
                       warning: true,
                       message: `Missing file "${asset.realPathRelative}" will not be included in concatenation`,
-                      path,
+                      file,
                       contents: inputHTML,
                       line,
                       column,
@@ -85,7 +88,7 @@ export default function () {
             if (group.length > 1) {
               // this is a concatenatable asset (what we're here for).
               // make a custom path where we will save it - TODO WITH A HASH OF THE FILENAMES
-              const concatPath = resolve(baseDir, (
+              const concatPath = path.resolve(baseDir, (
                 'concat-' +
                 // todo: make the asset paths relative here
                 digest(
@@ -95,7 +98,7 @@ export default function () {
                 ).substring(0, 5) +
                 (group[0].type === 'script' ? '.js' : '.css')
               ));
-              const concatPathRelative = relative(baseDir, concatPath);
+              const concatPathRelative = path.relative(baseDir, concatPath);
 
               // concatenate it!
               const buffers = [];
@@ -106,7 +109,7 @@ export default function () {
                 if (asset.type === 'script' && i++ > 0) buffers.push(semicolonBuffer);
 
                 // if CSS, rebase all the URLs.
-                if (asset.type === 'stylesheet' && dirname(asset.realPathRelative) !== baseDir) {
+                if (asset.type === 'stylesheet' && path.dirname(asset.realPathRelative) !== baseDir) {
                   // todo: maybe use this via postcss so can preserve source map accuracy...
                   // https://github.com/callumlocke/reorient-css#postcss
 
@@ -124,7 +127,7 @@ export default function () {
               results[concatPath] = Buffer.concat(buffers);
 
               // add the new asset HTML
-              const concatURL = posixPath.normalize(concatPathRelative);
+              const concatURL = path.posix.normalize(concatPathRelative);
               if (lastAsset.type === 'script') {
                 fixedHTML += `<script src="${concatURL}"></script>`;
               }
@@ -151,7 +154,7 @@ export default function () {
           fixedHTML += inputHTML.substring(lastIndex);
 
           // add the fixed HTML file itself and return
-          results[path] = fixedHTML;
+          results[file] = fixedHTML;
           return results;
         });
 
