@@ -1,7 +1,7 @@
 {
   "name": "exhibit-builder-concat",
   "description": "Concatenates scripts and stylesheets based on adjacency of HTML tags",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Callum Locke",
   "babel": {
     "stage": 0,
